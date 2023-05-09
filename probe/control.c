@@ -1,6 +1,9 @@
 #include "os.h"
 #include <stddef.h>
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "control.h"
 #include "sensors.h"
@@ -13,30 +16,16 @@ extern int fd_pumpN,fd_pumpS,fd_pumpE,fd_pumpW,fd_pumpUp,fd_pumpDown;
 extern PREADYQUEUE tasks_queue;
 extern PSCHEDULER single_scheduler;
 
-PTASK read_deltaX,read_deltaY,read_deltaZ,act_N,act_S,act_E,act_W,act_U,act_D;
+float pos [3] = {0,0,0}, vel [3] = {0,0,0}, acc [3] = {0,0,0} ,dist, vel;
 
-
-float lect_X=0,lect_Y=0,lect_Z=0,dist = 0,last_dist =0,total_vel=0;
-
-float vel[3] = {0,0,0};  // X,Y,Z
-
-//FLAGS
-int initial_read = 0;
 
 int init_tasks()
 {    
     PTASK control;
 
-    Task_create(&control,"Control Task",task_control,0,1000,1);
+    Task_create(&control,"Control Task",task_control,0,3000,1);
 
-    //Task_create(&read_deltaX,"Read sensor X",task_read_socket,(void *)('X'),0,300);
-    //Task_create(&read_deltaY,"Read sensor Y",task_read_socket,(void *)('Y'),0,300);
-    //Task_create(&read_deltaZ,"Read sensor Z",task_read_socket,(void *)('Z'),0,300);
-    
-    //Task_create(&act_N,"Pump North",task_on_actuator,(void *)('N'),0,100);
-    //Task_create(&act_S,"Pump South",task_on_actuator,(void *)('S'),0,100);
-    //Task_create(&act_E,"Pump East",task_on_actuator,(void *)('E'),0,100);
-    //Task_create(&act_W,"Pump West",task_on_actuator,(void *)('W'),0,100);
+
 
     Readyqueue_enqueue(tasks_queue,control);
     
@@ -44,51 +33,45 @@ int init_tasks()
     return 0;
 }
 
-void task_read_socket(char val)
+void task_read_socket(char val,float *pos)
 {
 
     if(val == 'X'){
-        read_socket(fd_deltaX,&lect_X);
+        read_socket(fd_deltaX,pos);
     }
     else if ( val == 'Y'){
-        read_socket(fd_deltaY,&lect_Y);
+        read_socket(fd_deltaY,pos);
     }
     else{
-        read_socket(fd_deltaZ,&lect_Z);
+        read_socket(fd_deltaZ,pos);
     }
 
 }
 
 void task_on_actuator(char val)
 {
-    int fd;
+    int fd = 1;
 
     if(val == 'N'){
         fd = fd_pumpN;
-        vel[1] = vel[1]-0.01;
     }
     else if ( val == 'S')
     {
         fd = fd_pumpS;
-        vel[1] = vel[1]+0.01;
     }
     else if ( val == 'E')
     {
         fd = fd_pumpE;
-        vel[0] = vel[0]-0.01;
     } 
     else if ( val == 'W')
     { 
         fd = fd_pumpW;
-        vel[0] = vel[0]+0.01;
     }
     else if ( val == 'U'){
         fd = fd_pumpUp;
-        vel[2] = vel[2]-0.01;
     }
     else if ( val == 'D'){ 
         fd = fd_pumpDown;
-        vel[2] = vel[2]+0.01;
     }
 
     send_msg_actuator(fd,"start");  // 50ms accelerating --> +0.01m/s
@@ -99,11 +82,37 @@ void task_on_actuator(char val)
 
 void task_control(void * a)
 {
-    task_read_socket('X');
-    task_read_socket('Y');
-    task_read_socket('Z');
+    float posX [3],posY [3], posZ [3];
+    task_read_socket('X',&posX[0]);
+    task_read_socket('X',&posX[1]);
+    task_read_socket('X',&posX[2]);
+    
+    
+    pos[0] = posX[2];
+    vel[0] = (posX[2]-posX[1])/0.3;
+    acc[0] = ((vel[0])-((posX[1]-posX[0])/0.3))/0.3;
+    
+    task_read_socket('Y',&posY[0]);
+    task_read_socket('Y',&posY[1]);
+    task_read_socket('Y',&posY[2]);
 
-    total_vel = sqrt(pow(vel[0],2)+pow(vel[1],2)+pow(vel[2],2));
+    pos[1] = posY[2];
+    vel[1] = (posY[2]-posY[1])/0.3;
+    acc[1] = ((vel[1])-((posY[1]-posY[0])/0.3))/0.3;
+    
+    task_read_socket('Z',&posZ[0]);
+    task_read_socket('Z',&posZ[1]);
+    task_read_socket('Z',&posZ[2]);
+
+    pos[2] = posZ[2];
+    vel[2] = (posZ[2]-posZ[1])/0.3;
+    acc[2] = ((vel[2])-((posZ[1]-posZ[0])/0.3))/0.3;
+
+    float dist = sqrt(pow(pos[0],2)+pow(pos[1],2)+pow(pos[2],2));
+
+    
+
+    //total_vel = sqrt(pow(vel[0],2)+pow(vel[1],2)+pow(vel[2],2));
     /*
     if (!initial_read)
     {
@@ -120,7 +129,7 @@ void task_control(void * a)
         }
     }*/
 
-
+    /*
     if(lect_X < 0)
     {
         task_on_actuator('E');            
@@ -145,6 +154,6 @@ void task_control(void * a)
     {
         task_on_actuator('U');
     }
-
+    */
 
 }

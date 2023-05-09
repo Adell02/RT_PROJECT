@@ -62,6 +62,6 @@ int connect_socket(int port, int*fd)
 
 int read_socket(int fd, float *value)
 {
-    recv(fd, value, sizeof(float),0);
+    recv(fd, value, sizeof(float),0);    
     return 0;
 }

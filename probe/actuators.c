@@ -44,5 +44,7 @@ int send_msg_actuator(int fd,char * msg)
     send(fd,msg,length,0);
     recv(fd,(char *)&c,sizeof(char),0);
 
+    return(1);
+
 }
 
