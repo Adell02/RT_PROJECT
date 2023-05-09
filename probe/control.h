@@ -2,9 +2,9 @@
 #define __CONTROL_H__
 
 int init_tasks();
-void task_read_socket(char, float *);
+void task_read_socket(char,float *);
 void task_control(void *);
 void task_on_actuator(char);
-
+void ini_cond_func(void *);
 
 #endif
